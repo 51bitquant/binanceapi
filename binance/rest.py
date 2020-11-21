@@ -1,25 +1,21 @@
-
 """
 
-    1. Binance spot http client.
-    币安现货的http client
-    OKEX 交易所注册推荐码, 手续费返佣20%.
-    https://www.okex.me/join/1847111798
+    1. Binance Options http client.
+    币安期权 http client
 
-    币安推荐码:  返佣20%
-    https://www.binancezh.com/cn/register?ref=ESE80ESH
 
-    币安合约推荐码: 返佣10%
+    币安推荐码:  返佣10%, 或者填写邀请码: KIUMGOWR
+    https://www.binancezh.pro/cn/register?ref=KIUMGOWR
+
+    币安合约推荐码: 返佣10%, 或者填写邀请码: 51bitquant
     https://www.binancezh.com/cn/futures/ref/51bitquant
 
-    代码获取方式： 网易云课堂，或者联系bitquant51， 回复：网格交易代码
-
-    网格交易: 适合币圈的高波动率的品种，适合现货， 如果交易合约，需要注意防止极端行情爆仓。
+    Binance Invite Link: https://www.binancezh.com/cn/futures/ref/51bitquant
+    or invitation code: 51bitquant
 
 
     服务器购买地址: https://www.ucloud.cn/site/global.html?invitation_code=C1x2EA81CD79B8C#dongjing
 """
-
 
 import requests
 import time
@@ -81,31 +77,31 @@ class OrderSide(Enum):
     SELL = "SELL"
 
 
-class BinanceSpotHttp(object):
+class BinanceOpsHttp(object):
 
-    def __init__(self, api_key=None, secret=None, host=None, timeout=5, try_counts=5):
+    def __init__(self, api_key=None, api_secret=None, host=None, timeout=5, try_counts=5):
         self.api_key = api_key
-        self.secret = secret
-        self.host = host if host else "https://api.binance.com"
+        self.api_secret = api_secret
+        self.host = host if host else 'https://testnet.binanceops.com'  # "https://api.binanceops.com"
         self.recv_window = 10000
         self.timeout = timeout
         self.order_count_lock = Lock()
         self.order_count = 1_000_000
-        self.try_counts = try_counts # 失败尝试的次数.
+        self.try_counts = try_counts  # 失败尝试的次数.
 
     def build_parameters(self, params: dict):
         keys = list(params.keys())
         keys.sort()
         return '&'.join([f"{key}={params[key]}" for key in params.keys()])
 
-    def request(self, req_method: RequestMethod, path: str, requery_dict=None, verify=False):
+    def request(self, req_method: RequestMethod, path: str, params=None, verify=False):
         url = self.host + path
 
         if verify:
-            query_str = self._sign(requery_dict)
+            query_str = self._sign(params)
             url += '?' + query_str
-        elif requery_dict:
-            url += '?' + self.build_parameters(requery_dict)
+        elif params:
+            url += '?' + self.build_parameters(params)
         headers = {"X-MBX-APIKEY": self.api_key}
 
         for i in range(0, self.try_counts):
@@ -119,52 +115,89 @@ class BinanceSpotHttp(object):
                 print(f"请求:{path}, 发生了错误: {error}")
                 time.sleep(3)
 
+    def get_ping(self):
+        """
+        check the connection
+        :return:
+        """
+        path = "/api/v1/ping"
+        return self.request(req_method=RequestMethod.GET, path=path)
+
     def get_server_time(self):
-        path = '/api/v3/time'
+        """
+        get the server time.
+        :return:
+        """
+        path = '/api/v1/time'
+        return self.request(req_method=RequestMethod.GET, path=path)
+
+    def get_option_info(self):
+
+        """
+        get the option info
+        """
+
+        path = '/api/v1/optionInfo'
         return self.request(req_method=RequestMethod.GET, path=path)
 
     def get_exchange_info(self):
 
         """
-        return:
-         the exchange info in json format:
-        {'timezone': 'UTC', 'serverTime': 1570802268092, 'rateLimits':
-        [{'rateLimitType': 'REQUEST_WEIGHT', 'interval': 'MINUTE', 'intervalNum': 1, 'limit': 1200},
-        {'rateLimitType': 'ORDERS', 'interval': 'MINUTE', 'intervalNum': 1, 'limit': 1200}],
-         'exchangeFilters': [], 'symbols':
-         [{'symbol': 'BTCUSDT', 'status': 'TRADING', 'maintMarginPercent': '2.5000', 'requiredMarginPercent': '5.0000',
-         'baseAsset': 'BTC', 'quoteAsset': 'USDT', 'pricePrecision': 2, 'quantityPrecision': 3, 'baseAssetPrecision': 8,
-         'quotePrecision': 8,
-         'filters': [{'minPrice': '0.01', 'maxPrice': '100000', 'filterType': 'PRICE_FILTER', 'tickSize': '0.01'},
-         {'stepSize': '0.001', 'filterType': 'LOT_SIZE', 'maxQty': '1000', 'minQty': '0.001'},
-         {'stepSize': '0.001', 'filterType': 'MARKET_LOT_SIZE', 'maxQty': '1000', 'minQty': '0.001'},
-         {'limit': 200, 'filterType': 'MAX_NUM_ORDERS'},
-         {'multiplierDown': '0.8500', 'multiplierUp': '1.1500', 'multiplierDecimal': '4', 'filterType': 'PERCENT_PRICE'}],
-         'orderTypes': ['LIMIT', 'MARKET', 'STOP'], 'timeInForce': ['GTC', 'IOC', 'FOK', 'GTX']}]}
-
+        get the exchange info
         """
 
-        path = '/api/v3/exchangeInfo'
+        path = '/api/v1/exchangeInfo'
         return self.request(req_method=RequestMethod.GET, path=path)
 
-    def get_order_book(self, symbol, limit=5):
+    def get_index(self, underlying='BTCUSDT'):
+        """
+        get the spot index, you may use as reference
+        :return:
+        """
+        path = "/api/v1/index"
+        params = {
+            'underlying': underlying
+        }
+        return self.request(req_method=RequestMethod.GET, path=path, params=params)
+
+    def get_ticker(self, symbol=None):
+        path = "/api/v1/ticker"
+
+        params = {}
+        if symbol is not None:
+            params['symbol'] = symbol
+
+        return self.request(req_method=RequestMethod.GET, path=path, params=params)
+
+    def get_mark(self, symbol=None):
+        path = '/api/v1/mark'
+        params = {}
+        if symbol is not None:
+            params['symbol'] = symbol
+
+        return self.request(req_method=RequestMethod.GET, path=path, params=params)
+
+    def get_order_book(self, symbol, limit=10):
         """
         :param symbol: BTCUSDT, BNBUSDT ect, 交易对.
         :param limit: market depth.
         :return: return order_book in json 返回订单簿，json数据格式.
         """
-        limits = [5, 10, 20, 50, 100, 500, 1000]
+        limits = [10, 20, 50, 100, 1000]
+
         if limit not in limits:
-            limit = 5
+            limit = 10
 
-        path = "/api/v3/depth"
-        query_dict = {"symbol": symbol,
-                      "limit": limit
-                      }
+        path = "/api/v1/depth"
+        params = {"symbol": symbol,
+                  "limit": limit
+                  }
 
-        return self.request(RequestMethod.GET, path, query_dict)
+        print(params)
 
-    def get_kline(self, symbol, interval: Interval, start_time=None, end_time=None, limit=500, max_try_time=10):
+        return self.request(RequestMethod.GET, path, params)
+
+    def get_kline(self, symbol, interval: Interval, start_time=None, end_time=None, limit=500):
         """
         获取K线数据.
         :param symbol:
@@ -175,47 +208,46 @@ class BinanceSpotHttp(object):
         :param max_try_time:
         :return:
         """
-        path = "/api/v3/klines"
+        path = "/api/v1/klines"
 
-        query_dict = {
+        if limit not in [500, 1500]:
+            limit = 500
+
+        params = {
             "symbol": symbol,
             "interval": interval.value,
             "limit": limit
         }
 
         if start_time:
-            query_dict['startTime'] = start_time
+            params['startTime'] = start_time
 
         if end_time:
-            query_dict['endTime'] = end_time
+            params['endTime'] = end_time
 
-        for i in range(max_try_time):
-            data = self.request(RequestMethod.GET, path, query_dict)
-            if isinstance(data, list) and len(data):
-                return data
+        return self.request(RequestMethod.GET, path, params)
 
-    def get_latest_price(self, symbol):
-        """
-        :param symbol: 获取最新的价格.
-        :return: {'symbol': 'BTCUSDT', 'price': '9168.90000000'}
+    def get_trades(self, symbol, limit=100):
+        path = "/api/v1/trades"
+        if limit not in [100, 500]:
+            limit = 100
 
-        """
-        path = "/api/v3/ticker/price"
-        query_dict = {"symbol": symbol}
-        return self.request(RequestMethod.GET, path, query_dict)
-
-    def get_ticker(self, symbol):
-        """
-        :param symbol: 交易对
-        :return: 返回的数据如下:
-        {
-        'symbol': 'BTCUSDT', 'bidPrice': '9168.50000000', 'bidQty': '1.27689900',
-        'askPrice': '9168.51000000', 'askQty': '0.93307800'
+        params = {
+            "symbol": symbol,
+            "limit": limit
         }
-        """
-        path = "/api/v3/ticker/bookTicker"
-        query_dict = {"symbol": symbol}
-        return self.request(RequestMethod.GET, path, query_dict)
+
+        return self.request(RequestMethod.GET, path, params)
+
+    def get_historical_trades(self, symbol, from_id=None, limit=100):
+        path = '/api/v1/historicalTrades'
+        if limit not in [100, 500]:
+            limit = 100
+        params = {'symbol': symbol, 'limit': limit}
+        if from_id is not None:
+            params['fromId'] = from_id
+
+        return self.request(RequestMethod.GET, path, params)
 
     def get_client_order_id(self):
         """
@@ -224,9 +256,9 @@ class BinanceSpotHttp(object):
         """
         with self.order_count_lock:
             self.order_count += 1
-            return "x-A6SIDXVS" + str(self.get_current_timestamp()) + str(self.order_count)
+            return "x-A6SIDXVS" + str(self.get_timestamp()) + str(self.order_count)
 
-    def get_current_timestamp(self):
+    def get_timestamp(self):
         """
         获取系统的时间.
         :return:
@@ -239,9 +271,8 @@ class BinanceSpotHttp(object):
         :param params: request parameters
         :return:
         """
-
         query_string = self.build_parameters(params)
-        hex_digest = hmac.new(self.secret.encode('utf8'), query_string.encode("utf-8"), hashlib.sha256).hexdigest()
+        hex_digest = hmac.new(self.api_secret.encode('utf8'), query_string.encode("utf-8"), hashlib.sha256).hexdigest()
         return query_string + '&signature=' + str(hex_digest)
 
     def place_order(self, symbol: str, order_side: OrderSide, order_type: OrderType, quantity: float, price: float,
@@ -259,7 +290,7 @@ class BinanceSpotHttp(object):
         :return:
         """
 
-        path = '/api/v3/order'
+        path = '/api/v1/order'
 
         if client_order_id is None:
             client_order_id = self.get_client_order_id()
@@ -271,7 +302,7 @@ class BinanceSpotHttp(object):
             "quantity": quantity,
             "price": price,
             "recvWindow": self.recv_window,
-            "timestamp": self.get_current_timestamp(),
+            "timestamp": self.get_timestamp(),
             "newClientOrderId": client_order_id
         }
 
@@ -288,7 +319,7 @@ class BinanceSpotHttp(object):
             else:
                 raise ValueError("stopPrice must greater than 0")
 
-        return self.request(RequestMethod.POST, path=path, requery_dict=params, verify=True)
+        return self.request(RequestMethod.POST, path, params, verify=True)
 
     def get_order(self, symbol: str, client_order_id: str):
         """
@@ -297,8 +328,8 @@ class BinanceSpotHttp(object):
         :param client_order_id:
         :return:
         """
-        path = "/api/v3/order"
-        prams = {"symbol": symbol, "timestamp": self.get_current_timestamp(), "origClientOrderId": client_order_id}
+        path = "/api/v1/order"
+        prams = {"symbol": symbol, "timestamp": self.get_timestamp(), "origClientOrderId": client_order_id}
 
         return self.request(RequestMethod.GET, path, prams, verify=True)
 
@@ -309,8 +340,8 @@ class BinanceSpotHttp(object):
         :param client_order_id:
         :return:
         """
-        path = "/api/v3/order"
-        params = {"symbol": symbol, "timestamp": self.get_current_timestamp(),
+        path = "/api/v1/order"
+        params = {"symbol": symbol, "timestamp": self.get_timestamp(),
                   "origClientOrderId": client_order_id
                   }
 
@@ -328,9 +359,9 @@ class BinanceSpotHttp(object):
         :param symbol: BNBUSDT, or BTCUSDT etc.
         :return:
         """
-        path = "/api/v3/openOrders"
+        path = "/api/v1/openOrders"
 
-        params = {"timestamp": self.get_current_timestamp()}
+        params = {"timestamp": self.get_timestamp()}
         if symbol:
             params["symbol"] = symbol
 
@@ -342,9 +373,9 @@ class BinanceSpotHttp(object):
         :param symbol: symbol
         :return: return a list of orders.
         """
-        path = "/api/v3/openOrders"
+        path = "/api/v1/openOrders"
 
-        params = {"timestamp": self.get_current_timestamp(),
+        params = {"timestamp": self.get_timestamp(),
                   "recvWindow": self.recv_window,
                   "symbol": symbol
                   }
@@ -353,17 +384,11 @@ class BinanceSpotHttp(object):
 
     def get_account_info(self):
         """
-        {'feeTier': 2, 'canTrade': True, 'canDeposit': True, 'canWithdraw': True, 'updateTime': 0, 'totalInitialMargin': '0.00000000',
-        'totalMaintMargin': '0.00000000', 'totalWalletBalance': '530.21334791', 'totalUnrealizedProfit': '0.00000000',
-        'totalMarginBalance': '530.21334791', 'totalPositionInitialMargin': '0.00000000', 'totalOpenOrderInitialMargin': '0.00000000',
-        'maxWithdrawAmount': '530.2133479100000', 'assets':
-        [{'asset': 'USDT', 'walletBalance': '530.21334791', 'unrealizedProfit': '0.00000000', 'marginBalance': '530.21334791',
-        'maintMargin': '0.00000000', 'initialMargin': '0.00000000', 'positionInitialMargin': '0.00000000', 'openOrderInitialMargin': '0.00000000',
-        'maxWithdrawAmount': '530.2133479100000'}]}
+
         :return:
         """
-        path = "/api/v3/account"
-        params = {"timestamp": self.get_current_timestamp(),
+        path = "/api/v1/account"
+        params = {"timestamp": self.get_timestamp(),
                   "recvWindow": self.recv_window
                   }
         return self.request(RequestMethod.GET, path, params, verify=True)
