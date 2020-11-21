@@ -275,6 +275,31 @@ class BinanceOpsHttp(object):
         hex_digest = hmac.new(self.api_secret.encode('utf8'), query_string.encode("utf-8"), hashlib.sha256).hexdigest()
         return query_string + '&signature=' + str(hex_digest)
 
+    def get_listen_key(self):
+        path = "/api/v1/userDataStream"
+        params = {
+            'recvWindow': 5000,
+            'timestamp': self.get_timestamp()
+        }
+
+        return self.request(RequestMethod.POST, path, params, verify=True)
+
+    def extend_listen_key(self, listen_key):
+        """
+        :param listen_key:
+        :return:
+        """
+        path = "/api/v1/userDataStream"
+        params = {
+            'recvWindow': 5000,
+            'timestamp': self.get_timestamp(),
+            'listenKey': listen_key
+        }
+        return self.request(RequestMethod.PUT, path, params, verify=True)
+
+    def delete_listen_key(self):
+        pass
+
     def place_order(self, symbol: str, order_side: OrderSide, order_type: OrderType, quantity: float, price: float,
                     client_order_id: str = None, time_inforce="GTC", stop_price=0):
         """

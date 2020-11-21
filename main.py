@@ -26,4 +26,8 @@ if __name__ == '__main__':
     # print(binance_ops.get_kline('BTCUSDT-201127-15000-C', Interval.MINUTE_1))
     # print(binance_ops.get_trades('BTCUSDT-201127-15000-C'))
 
-    print(binance_ops.get_historical_trades('BTCUSDT-201127-15000-C', from_id='1125899906843376090'))
+    # print(binance_ops.get_historical_trades('BTCUSDT-201127-15000-C', from_id='1125899906843376090'))
+
+    # print(binance_ops.get_listen_key())
+    # {'code': 0, 'msg': 'success', 'data': {'listenKey': 'etJVNvLsUGD73XBhfIHFdkyd8ZRktMy4iDoj3hpi'}}
+    print(binance_ops.extend_listen_key('DUEnlKe6vwFY6x1un9Li6af6Bot6koOtnWq3Gud4'))
