@@ -1,6 +1,7 @@
 # Binance Exchange REST API
 
-Binance Exchange REST API, spot, future and option api
+Binance Exchange RESTful API, spot, future and option api
+币安交易所RESTful API，现货，期货合约api 
 
 ## how to use rest api
 
